@@ -17,6 +17,7 @@ import {
 import { useApp } from '../context/AppContext.tsx';
 import { useAuth } from '../context/AuthContext.tsx';
 import { api } from '../services/api.ts';
+import { firestoreSocial } from '../lib/firestoreSocial.ts';
 import type { User, FriendRequest } from '../types/index.ts';
 import { Avatar } from '../components/common/Avatar.tsx';
 import { EmptyState } from '../components/common/EmptyState.tsx';
@@ -53,15 +54,52 @@ export const FriendsScreen: React.FC = () => {
     if (!currentUser) return;
     setIsLoading(true);
     try {
-      const [friendsRes, requestsRes, usersRes] = await Promise.all([
-        api.getFriends().catch(() => ({ friends: [] as User[] })),
-        api.getFriendRequests().catch(() => ({ incoming: [] as FriendRequest[], outgoing: [] as FriendRequest[] })),
-        api.getUsers().catch(() => ({ users: [] as User[] })),
-      ]);
-      setFriends(Array.isArray(friendsRes?.friends) ? friendsRes.friends : []);
-      setIncomingRequests(Array.isArray(requestsRes?.incoming) ? requestsRes.incoming : []);
-      setOutgoingRequests(Array.isArray(requestsRes?.outgoing) ? requestsRes.outgoing : []);
-      setAllUsers((Array.isArray(usersRes?.users) ? usersRes.users : []).filter((u) => u.id !== currentUser.id));
+      // 1. Try Backend API first
+      let loadedFriends: User[] = [];
+      let loadedIncoming: FriendRequest[] = [];
+      let loadedOutgoing: FriendRequest[] = [];
+      let loadedUsers: User[] = [];
+
+      try {
+        const [friendsRes, requestsRes, usersRes] = await Promise.all([
+          api.getFriends().catch(() => null),
+          api.getFriendRequests().catch(() => null),
+          api.getUsers().catch(() => null),
+        ]);
+
+        if (friendsRes?.friends) loadedFriends = friendsRes.friends;
+        if (requestsRes?.incoming) loadedIncoming = requestsRes.incoming;
+        if (requestsRes?.outgoing) loadedOutgoing = requestsRes.outgoing;
+        if (usersRes?.users) loadedUsers = usersRes.users;
+      } catch {
+        // Backend not available on static hosting
+      }
+
+      // 2. Seamless Firestore sync / fallback
+      if (loadedUsers.length === 0) {
+        const firestoreUsers = await firestoreSocial.searchUsers();
+        if (firestoreUsers.length > 0) {
+          loadedUsers = firestoreUsers;
+        }
+      }
+
+      if (loadedFriends.length === 0) {
+        const firestoreFriends = await firestoreSocial.getFriends(currentUser.id);
+        if (firestoreFriends.length > 0) {
+          loadedFriends = firestoreFriends;
+        }
+      }
+
+      if (loadedIncoming.length === 0 && loadedOutgoing.length === 0) {
+        const fsRequests = await firestoreSocial.getFriendRequests(currentUser.id);
+        loadedIncoming = fsRequests.incoming;
+        loadedOutgoing = fsRequests.outgoing;
+      }
+
+      setFriends(loadedFriends);
+      setIncomingRequests(loadedIncoming);
+      setOutgoingRequests(loadedOutgoing);
+      setAllUsers(loadedUsers.filter((u) => u.id !== currentUser.id));
     } catch (err) {
       console.error('Failed to load friends and social graph:', err);
     } finally {
@@ -78,15 +116,33 @@ export const FriendsScreen: React.FC = () => {
     if (!currentUser || actionLoadingId) return;
     setActionLoadingId(`send_${targetUser.id}`);
     try {
-      const res = await api.sendFriendRequest(targetUser.id);
-      if (res.relationship === 'friends') {
-        // Mutual request was accepted immediately
-        setFriends((prev) => [...prev, targetUser]);
-        setIncomingRequests((prev) => prev.filter((r) => r.senderId !== targetUser.id));
-        showToast(`You and ${targetUser.fullName} are now friends!`);
-      } else {
-        setOutgoingRequests((prev) => [...prev, res.request]);
-        showToast(`Friend request sent to ${targetUser.fullName}`);
+      let sentSuccessfully = false;
+      try {
+        const res = await api.sendFriendRequest(targetUser.id);
+        if (res.relationship === 'friends') {
+          setFriends((prev) => [...prev, targetUser]);
+          setIncomingRequests((prev) => prev.filter((r) => r.senderId !== targetUser.id));
+          showToast(`You and ${targetUser.fullName} are now friends!`);
+          sentSuccessfully = true;
+        } else if (res?.request) {
+          setOutgoingRequests((prev) => [...prev, res.request]);
+          showToast(`Friend request sent to ${targetUser.fullName}`);
+          sentSuccessfully = true;
+        }
+      } catch {
+        // Backend not reachable, fall back to Firestore direct write
+      }
+
+      if (!sentSuccessfully) {
+        const fsRes = await firestoreSocial.sendFriendRequest(currentUser, targetUser);
+        if (fsRes.relationship === 'friends') {
+          setFriends((prev) => [...prev, targetUser]);
+          setIncomingRequests((prev) => prev.filter((r) => r.senderId !== targetUser.id));
+          showToast(`You and ${targetUser.fullName} are now friends!`);
+        } else {
+          setOutgoingRequests((prev) => [...prev, fsRes.request]);
+          showToast(`Friend request sent to ${targetUser.fullName}`);
+        }
       }
     } catch (err: any) {
       showToast(err?.message || 'Failed to send friend request.');
@@ -100,7 +156,11 @@ export const FriendsScreen: React.FC = () => {
     if (!currentUser || actionLoadingId) return;
     setActionLoadingId(`accept_${request.id}`);
     try {
-      await api.acceptFriendRequest(request.id);
+      try {
+        await api.acceptFriendRequest(request.id);
+      } catch {
+        await firestoreSocial.acceptFriendRequest(request.id, currentUser.id);
+      }
       await loadData();
       showToast(`Accepted friend request from ${request.senderName}!`);
     } catch (err: any) {
@@ -115,7 +175,11 @@ export const FriendsScreen: React.FC = () => {
     if (!currentUser || actionLoadingId) return;
     setActionLoadingId(`reject_${request.id}`);
     try {
-      await api.rejectFriendRequest(request.id);
+      try {
+        await api.rejectFriendRequest(request.id);
+      } catch {
+        await firestoreSocial.deleteFriendRequest(request.id);
+      }
       setIncomingRequests((prev) => prev.filter((r) => r.id !== request.id));
       showToast(`Declined request from ${request.senderName}.`);
     } catch (err: any) {
@@ -130,7 +194,11 @@ export const FriendsScreen: React.FC = () => {
     if (!currentUser || actionLoadingId) return;
     setActionLoadingId(`cancel_${requestId}`);
     try {
-      await api.cancelFriendRequest(requestId);
+      try {
+        await api.cancelFriendRequest(requestId);
+      } catch {
+        await firestoreSocial.deleteFriendRequest(requestId);
+      }
       setOutgoingRequests((prev) => prev.filter((r) => r.id !== requestId));
       showToast('Friend request cancelled.');
     } catch (err: any) {
@@ -147,7 +215,11 @@ export const FriendsScreen: React.FC = () => {
     setActionLoadingId(`remove_${targetUser.id}`);
     setConfirmModal({ isOpen: false, type: 'remove', targetUser: null });
     try {
-      await api.removeFriend(targetUser.id);
+      try {
+        await api.removeFriend(targetUser.id);
+      } catch {
+        await firestoreSocial.removeFriend(currentUser.id, targetUser.id);
+      }
       setFriends((prev) => prev.filter((f) => f.id !== targetUser.id));
       showToast(`Removed ${targetUser.fullName} from friends.`);
     } catch (err: any) {
@@ -191,17 +263,21 @@ export const FriendsScreen: React.FC = () => {
 
   const totalRequestsCount = incomingRequests.length + outgoingRequests.length;
 
+  const cleanQuery = searchQuery.trim().toLowerCase().replace(/^@+/, '');
+
   // Filtered lists
   const filteredFriends = friends.filter(
     (f) =>
-      f.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      f.username.toLowerCase().includes(searchQuery.toLowerCase())
+      !cleanQuery ||
+      f.fullName.toLowerCase().includes(cleanQuery) ||
+      f.username.toLowerCase().includes(cleanQuery)
   );
 
   const filteredMembers = allUsers.filter(
     (u) =>
-      u.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      u.username.toLowerCase().includes(searchQuery.toLowerCase())
+      !cleanQuery ||
+      u.fullName.toLowerCase().includes(cleanQuery) ||
+      u.username.toLowerCase().includes(cleanQuery)
   );
 
   return (

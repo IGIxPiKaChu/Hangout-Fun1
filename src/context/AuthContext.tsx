@@ -12,6 +12,7 @@ import {
 import type { User } from '../types/index.ts';
 import { auth } from '../lib/firebase.ts';
 import { api } from '../services/api.ts';
+import { firestoreSocial } from '../lib/firestoreSocial.ts';
 
 interface AuthContextType {
   currentUser: User | null;
@@ -39,6 +40,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   useEffect(() => {
     localStorage.removeItem('social_hangout_session_user');
   }, []);
+
+  // Save user profile to Firestore for cross-user search and friends
+  useEffect(() => {
+    if (currentUser?.id) {
+      firestoreSocial.saveUserProfile(currentUser);
+    }
+  }, [currentUser]);
 
   // Listen to authoritative Firebase Authentication state changes
   useEffect(() => {

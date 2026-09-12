@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../../context/AppContext.tsx';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { api } from '../../services/api.ts';
+import { firestoreSocial } from '../../lib/firestoreSocial.ts';
 import type { User, RoomMemberUser, FriendRequest } from '../../types/index.ts';
 import { Modal } from '../common/Modal.tsx';
 import { Avatar } from '../common/Avatar.tsx';
@@ -58,17 +59,42 @@ export const AddFriendModal: React.FC<AddFriendModalProps> = ({
     const loadSocialData = async () => {
       setIsLoading(true);
       try {
-        const [friendsRes, requestsRes, usersRes] = await Promise.all([
-          api.getFriends(),
-          api.getFriendRequests(),
-          api.getUsers({ limit: 60 }),
-        ]);
+        let loadedFriends: User[] = [];
+        let loadedIncoming: FriendRequest[] = [];
+        let loadedOutgoing: FriendRequest[] = [];
+        let loadedUsers: User[] = [];
+
+        try {
+          const [friendsRes, requestsRes, usersRes] = await Promise.all([
+            api.getFriends().catch(() => null),
+            api.getFriendRequests().catch(() => null),
+            api.getUsers({ limit: 60 }).catch(() => null),
+          ]);
+          if (friendsRes?.friends) loadedFriends = friendsRes.friends;
+          if (requestsRes?.incoming) loadedIncoming = requestsRes.incoming;
+          if (requestsRes?.outgoing) loadedOutgoing = requestsRes.outgoing;
+          if (usersRes?.users) loadedUsers = usersRes.users;
+        } catch {
+          // Backend not reachable
+        }
+
+        if (loadedUsers.length === 0) {
+          loadedUsers = await firestoreSocial.searchUsers();
+        }
+        if (loadedFriends.length === 0) {
+          loadedFriends = await firestoreSocial.getFriends(currentUser.id);
+        }
+        if (loadedIncoming.length === 0 && loadedOutgoing.length === 0) {
+          const fsReqs = await firestoreSocial.getFriendRequests(currentUser.id);
+          loadedIncoming = fsReqs.incoming;
+          loadedOutgoing = fsReqs.outgoing;
+        }
 
         if (!isMounted) return;
-        setFriends(friendsRes.friends || []);
-        setOutgoingRequests(requestsRes.outgoing || []);
-        setIncomingRequests(requestsRes.incoming || []);
-        setAllUsers((usersRes.users || []).filter((u) => u.id !== currentUser.id));
+        setFriends(loadedFriends);
+        setOutgoingRequests(loadedOutgoing);
+        setIncomingRequests(loadedIncoming);
+        setAllUsers(loadedUsers.filter((u) => u.id !== currentUser.id));
       } catch (err) {
         console.error('Failed to load social data in AddFriendModal:', err);
       } finally {
@@ -102,10 +128,10 @@ export const AddFriendModal: React.FC<AddFriendModalProps> = ({
 
   // Filtered search results
   const filteredUsers = useMemo(() => {
-    if (!searchQuery.trim()) {
+    const q = searchQuery.toLowerCase().trim().replace(/^@+/, '');
+    if (!q) {
       return allUsers.slice(0, 15);
     }
-    const q = searchQuery.toLowerCase().trim();
     return allUsers.filter(
       (u) =>
         u.fullName.toLowerCase().includes(q) ||
@@ -125,14 +151,33 @@ export const AddFriendModal: React.FC<AddFriendModalProps> = ({
     if (!currentUser || actionLoadingId) return;
     setActionLoadingId(`add_${targetUser.id}`);
     try {
-      const res = await api.sendFriendRequest(targetUser.id);
-      if (res.relationship === 'friends') {
-        setFriends((prev) => [...prev, targetUser]);
-        setIncomingRequests((prev) => prev.filter((r) => r.senderId !== targetUser.id));
-        showToast(`You and ${targetUser.fullName} are now friends!`);
-      } else {
-        setOutgoingRequests((prev) => [...prev, res.request]);
-        showToast(`Friend request sent to ${targetUser.fullName}`);
+      let sentSuccessfully = false;
+      try {
+        const res = await api.sendFriendRequest(targetUser.id);
+        if (res.relationship === 'friends') {
+          setFriends((prev) => [...prev, targetUser]);
+          setIncomingRequests((prev) => prev.filter((r) => r.senderId !== targetUser.id));
+          showToast(`You and ${targetUser.fullName} are now friends!`);
+          sentSuccessfully = true;
+        } else if (res?.request) {
+          setOutgoingRequests((prev) => [...prev, res.request]);
+          showToast(`Friend request sent to ${targetUser.fullName}`);
+          sentSuccessfully = true;
+        }
+      } catch {
+        // Fallback to Firestore
+      }
+
+      if (!sentSuccessfully) {
+        const fsRes = await firestoreSocial.sendFriendRequest(currentUser, targetUser);
+        if (fsRes.relationship === 'friends') {
+          setFriends((prev) => [...prev, targetUser]);
+          setIncomingRequests((prev) => prev.filter((r) => r.senderId !== targetUser.id));
+          showToast(`You and ${targetUser.fullName} are now friends!`);
+        } else {
+          setOutgoingRequests((prev) => [...prev, fsRes.request]);
+          showToast(`Friend request sent to ${targetUser.fullName}`);
+        }
       }
     } catch (err: any) {
       showToast(err?.message || 'Failed to send friend request.');
@@ -146,7 +191,11 @@ export const AddFriendModal: React.FC<AddFriendModalProps> = ({
     if (!currentUser || actionLoadingId) return;
     setActionLoadingId(`accept_${request.id}`);
     try {
-      await api.acceptFriendRequest(request.id);
+      try {
+        await api.acceptFriendRequest(request.id);
+      } catch {
+        await firestoreSocial.acceptFriendRequest(request.id, currentUser.id);
+      }
       setIncomingRequests((prev) => prev.filter((r) => r.id !== request.id));
       setFriends((prev) => [...prev, senderUser]);
       showToast(`Accepted friend request from ${senderUser.fullName}!`);
