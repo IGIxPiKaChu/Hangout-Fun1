@@ -1,0 +1,11 @@
+{
+  "name": "Hangout fun",
+  "description": "Connect, hangout, chat, and share together in real-time social rooms and communities.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

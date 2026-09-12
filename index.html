@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hangout fun</title>
+    <meta name="description" content="Connect, hangout, chat, and share together in real-time social rooms and communities." />
+    <meta property="og:title" content="Hangout fun" />
+    <meta property="og:description" content="Connect, hangout, chat, and share together in real-time social rooms and communities." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+      (function() {
+        try {
+          var mode = localStorage.getItem('vibesphere_theme_mode');
+          if (!mode) {
+            var raw = localStorage.getItem('vibesphere_user_pref_v2');
+            if (raw) {
+              var parsed = JSON.parse(raw);
+              mode = parsed.themeMode;
+            }
+          }
+          var resolved = mode === 'light' ? 'light' : (mode === 'system' ? (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : 'dark');
+          var root = document.documentElement;
+          if (resolved === 'light') {
+            root.classList.add('light');
+            root.classList.remove('dark');
+            root.setAttribute('data-theme', 'light');
+          } else {
+            root.classList.add('dark');
+            root.classList.remove('light');
+            root.setAttribute('data-theme', 'dark');
+          }
+        } catch(e) {}
+      })();
+    </script>
+  </head>
+  <body class="bg-[#0a0b14] text-slate-100 antialiased selection:bg-purple-600 selection:text-white">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+

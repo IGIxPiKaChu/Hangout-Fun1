@@ -1,0 +1,174 @@
+{
+  "entities": {
+    "user": {
+      "title": "User",
+      "description": "User profile representation in Social Hangout",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier of the user" },
+        "fullName": { "type": "string", "description": "Display name of the user" },
+        "username": { "type": "string", "description": "Unique handle of the user" },
+        "email": { "type": "string", "description": "Email address of the user" },
+        "avatarUrl": { "type": "string", "description": "URL to the avatar image" },
+        "coverUrl": { "type": "string", "description": "URL to cover banner" },
+        "bio": { "type": "string", "description": "Short bio or tagline" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Account creation timestamp" },
+        "isOnline": { "type": "boolean", "description": "Online presence status" },
+        "lastSeen": { "type": "string", "format": "date-time", "description": "Last activity timestamp" },
+        "friends": { "type": "array", "description": "List of friend user IDs" },
+        "followersCount": { "type": "number", "description": "Count of followers" },
+        "blockedUsers": { "type": "array", "description": "List of blocked user IDs" },
+        "savedMessageIds": { "type": "array", "description": "List of bookmarked message IDs" }
+      },
+      "required": ["id", "fullName", "username", "createdAt"]
+    },
+    "room": {
+      "title": "Room",
+      "description": "Hangout voice/video/chat room entity",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique room identifier" },
+        "code": { "type": "string", "description": "Short invite code" },
+        "name": { "type": "string", "description": "Title of the hangout room" },
+        "description": { "type": "string", "description": "Purpose and rules of the room" },
+        "bannerUrl": { "type": "string", "description": "Banner cover image URL" },
+        "type": { "type": "string", "enum": ["public", "private"], "description": "Room visibility" },
+        "hostId": { "type": "string", "description": "UID of room creator" },
+        "hostName": { "type": "string", "description": "Name of host" },
+        "hostUsername": { "type": "string", "description": "Handle of host" },
+        "hostAvatar": { "type": "string", "description": "Avatar of host" },
+        "maxMembers": { "type": "number", "description": "Capacity limit" },
+        "allowJoinRequests": { "type": "boolean", "description": "Whether requests are needed to join" },
+        "memberIds": { "type": "array", "description": "Current member UIDs" },
+        "adminIds": { "type": "array", "description": "Moderator UIDs" },
+        "tags": { "type": "array", "description": "Category tags" },
+        "language": { "type": "string", "description": "Primary room language" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Creation timestamp" },
+        "isActive": { "type": "boolean", "description": "Whether room is active" }
+      },
+      "required": ["id", "name", "type", "hostId", "createdAt"]
+    },
+    "roomMessage": {
+      "title": "RoomMessage",
+      "description": "Chat message sent inside a room",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Message identifier" },
+        "roomId": { "type": "string", "description": "Associated room ID" },
+        "senderId": { "type": "string", "description": "Author UID" },
+        "senderName": { "type": "string", "description": "Author display name" },
+        "senderAvatar": { "type": "string", "description": "Author avatar URL" },
+        "senderUsername": { "type": "string", "description": "Author handle" },
+        "content": { "type": "string", "description": "Text body of the message" },
+        "type": { "type": "string", "enum": ["text", "image", "video", "audio", "file", "system"], "description": "Message type" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Creation timestamp" }
+      },
+      "required": ["id", "roomId", "senderId", "content", "createdAt"]
+    },
+    "conversation": {
+      "title": "Conversation",
+      "description": "1-on-1 direct messaging conversation",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique conversation ID" },
+        "participants": { "type": "array", "description": "User IDs involved in conversation" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Start timestamp" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Last update timestamp" }
+      },
+      "required": ["id", "participants", "createdAt", "updatedAt"]
+    },
+    "directMessage": {
+      "title": "DirectMessage",
+      "description": "Message within a direct conversation",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Message ID" },
+        "conversationId": { "type": "string", "description": "Conversation ID" },
+        "senderId": { "type": "string", "description": "Sender UID" },
+        "receiverId": { "type": "string", "description": "Receiver UID" },
+        "content": { "type": "string", "description": "Message text" },
+        "type": { "type": "string", "description": "Type of direct message" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Sent timestamp" },
+        "read": { "type": "boolean", "description": "Read receipt status" }
+      },
+      "required": ["id", "conversationId", "senderId", "receiverId", "content", "createdAt"]
+    },
+    "friendRequest": {
+      "title": "FriendRequest",
+      "description": "Friend request invitation between two users",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Request ID" },
+        "senderId": { "type": "string", "description": "Sender UID" },
+        "receiverId": { "type": "string", "description": "Recipient UID" },
+        "status": { "type": "string", "enum": ["pending", "accepted", "declined", "cancelled"], "description": "Current status" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Request timestamp" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Update timestamp" }
+      },
+      "required": ["id", "senderId", "receiverId", "status", "createdAt", "updatedAt"]
+    },
+    "notification": {
+      "title": "Notification",
+      "description": "In-app alert notification",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Notification ID" },
+        "userId": { "type": "string", "description": "Recipient UID" },
+        "type": { "type": "string", "description": "Notification kind" },
+        "title": { "type": "string", "description": "Alert title" },
+        "description": { "type": "string", "description": "Alert message" },
+        "isRead": { "type": "boolean", "description": "Read flag" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Timestamp" }
+      },
+      "required": ["id", "userId", "type", "title", "createdAt"]
+    },
+    "userSettings": {
+      "title": "UserSettings",
+      "description": "User preferences and settings",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "UID of owner" },
+        "soundEffects": { "type": "boolean", "description": "Sound effects enabled" },
+        "noiseCancellation": { "type": "boolean", "description": "Microphone noise suppression" },
+        "dataSaver": { "type": "boolean", "description": "Data saver downsampling" },
+        "hapticFeedback": { "type": "boolean", "description": "Haptic feedback enabled" },
+        "language": { "type": "string", "description": "UI language" }
+      },
+      "required": ["userId"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "user",
+      "description": "User profiles collection"
+    },
+    "/rooms/{roomId}": {
+      "schema": "room",
+      "description": "Rooms collection"
+    },
+    "/rooms/{roomId}/messages/{messageId}": {
+      "schema": "roomMessage",
+      "description": "Subcollection of room chat messages"
+    },
+    "/conversations/{conversationId}": {
+      "schema": "conversation",
+      "description": "Direct conversation threads"
+    },
+    "/conversations/{conversationId}/messages/{messageId}": {
+      "schema": "directMessage",
+      "description": "Direct chat message items"
+    },
+    "/friendRequests/{requestId}": {
+      "schema": "friendRequest",
+      "description": "Friend requests collection"
+    },
+    "/notifications/{notificationId}": {
+      "schema": "notification",
+      "description": "User notifications collection"
+    },
+    "/userSettings/{userId}": {
+      "schema": "userSettings",
+      "description": "User settings document"
+    }
+  }
+}

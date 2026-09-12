@@ -1,0 +1,15 @@
+node_modules/
+build/
+dist/
+coverage/
+.DS_Store
+*.log
+.env*
+!.env.example
+
+# Local storage and persistent state (keep directory anchors)
+data/*
+!data/.gitkeep
+!data/dev-fixtures.json
+uploads/*
+!uploads/.gitkeep

@@ -1,0 +1,261 @@
+@import "tailwindcss";
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+  :root {
+    --bg-app: #0a0b14;
+    --bg-card: #131525;
+    --bg-card-elevated: #17192c;
+    --bg-card-hover: rgba(255, 255, 255, 0.05);
+    --bg-nav: #0d0f1c;
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
+    --border-subtle: rgba(255, 255, 255, 0.06);
+    --border-strong: rgba(255, 255, 255, 0.14);
+    color-scheme: dark;
+  }
+
+  html.light,
+  :root[data-theme='light'] {
+    --bg-app: #f6f8fc;
+    --bg-card: #ffffff;
+    --bg-card-elevated: #f8fafc;
+    --bg-card-hover: rgba(15, 23, 42, 0.04);
+    --bg-nav: #ffffff;
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --text-muted: #64748b;
+    --border-subtle: #e2e8f0;
+    --border-strong: #cbd5e1;
+    color-scheme: light;
+  }
+
+  body {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background-color: var(--bg-app);
+    color: var(--text-primary);
+    overflow-x: hidden;
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+}
+
+/* Light Mode Overrides for Semantic Tokens */
+html.light body,
+:root[data-theme='light'] body {
+  background-color: #f6f8fc;
+  color: #0f172a;
+}
+
+html.light .bg-\[\#0a0b14\],
+html.light .bg-\[\#0a0b14\]\/90,
+html.light .bg-\[\#0a0b14\]\/80 {
+  background-color: #f6f8fc !important;
+}
+
+html.light header.bg-\[\#0a0b14\]\/90 {
+  background-color: rgba(255, 255, 255, 0.92) !important;
+  border-bottom-color: #e2e8f0 !important;
+}
+
+html.light .bg-\[\#0d0f1c\] {
+  background-color: #ffffff !important;
+  border-right-color: #e2e8f0 !important;
+  border-bottom-color: #e2e8f0 !important;
+}
+
+html.light .bg-\[\#0e101d\]\/95 {
+  background-color: rgba(255, 255, 255, 0.96) !important;
+  border-top-color: #e2e8f0 !important;
+}
+
+html.light .bg-\[\#131525\] {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.04);
+}
+
+html.light .bg-\[\#121424\] {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+}
+
+html.light .bg-\[\#17192c\] {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+
+html.light .bg-\[\#1a1d33\] {
+  background-color: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+html.light .bg-\[\#1b1e35\] {
+  background-color: #eef2f6 !important;
+}
+
+html.light .bg-\[\#141628\] {
+  background-color: #f8fafc !important;
+}
+
+html.light .bg-white\/5 {
+  background-color: rgba(15, 23, 42, 0.04) !important;
+}
+
+html.light .bg-white\/10 {
+  background-color: rgba(15, 23, 42, 0.08) !important;
+}
+
+html.light .hover\:bg-white\/5:hover {
+  background-color: rgba(15, 23, 42, 0.04) !important;
+}
+
+html.light .hover\:bg-white\/10:hover {
+  background-color: rgba(15, 23, 42, 0.08) !important;
+}
+
+/* Light mode text colors */
+html.light .text-white {
+  color: #0f172a !important;
+}
+
+html.light .text-slate-100 {
+  color: #0f172a !important;
+}
+
+html.light .text-slate-200 {
+  color: #1e293b !important;
+}
+
+html.light .text-slate-300 {
+  color: #334155 !important;
+}
+
+html.light .text-slate-400 {
+  color: #475569 !important;
+}
+
+html.light .text-slate-500 {
+  color: #64748b !important;
+}
+
+/* Preserving text color on colored badges, buttons and gradients in Light mode */
+html.light .btn-primary,
+html.light button.bg-purple-600,
+html.light button.bg-purple-500,
+html.light button.bg-indigo-600,
+html.light button.bg-rose-600,
+html.light button.bg-emerald-600,
+html.light button.bg-amber-600,
+html.light .bg-purple-600 .text-white,
+html.light .bg-indigo-600 .text-white,
+html.light .bg-rose-600 .text-white,
+html.light .bg-emerald-600 .text-white,
+html.light [class*="bg-purple-600"] .text-white,
+html.light [class*="bg-indigo-600"] .text-white,
+html.light [class*="bg-rose-600"] .text-white,
+html.light [class*="bg-gradient-to-"] .text-white,
+html.light [class*="bg-gradient-to-tr"] .text-white,
+html.light [class*="bg-gradient-to-r"] .text-white,
+html.light button[class*="bg-purple-"] > *,
+html.light button[class*="bg-gradient-"] > * {
+  color: #ffffff !important;
+}
+
+/* Borders in Light Mode */
+html.light .border-white\/5,
+html.light .border-white\/6,
+html.light .border-white\/10 {
+  border-color: #e2e8f0 !important;
+}
+
+html.light .border-purple-900\/20 {
+  border-color: #e2e8f0 !important;
+}
+
+html.light .divide-white\/5 > :not([hidden]) ~ :not([hidden]),
+html.light .divide-white\/6 > :not([hidden]) ~ :not([hidden]) {
+  border-color: #e2e8f0 !important;
+}
+
+/* Light mode form elements */
+html.light input:not([type="checkbox"]):not([type="radio"]),
+html.light textarea,
+html.light select {
+  color: #0f172a !important;
+}
+
+html.light input::placeholder,
+html.light textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
+/* Font Size Scaling */
+html[data-font-size="sm"] {
+  font-size: 15px;
+}
+
+html[data-font-size="md"] {
+  font-size: 16px;
+}
+
+html[data-font-size="lg"] {
+  font-size: 17.5px;
+}
+
+/* Reduced Motion Accessibility */
+html.reduce-motion *,
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Custom subtle scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(10, 11, 20, 0.5);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(139, 92, 246, 0.25);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(139, 92, 246, 0.45);
+}
+
+/* Typing Dots Wave Animation */
+@keyframes typingDotWave {
+  0%, 60%, 100% {
+    transform: translateY(0);
+    opacity: 0.35;
+  }
+  30% {
+    transform: translateY(-3.5px);
+    opacity: 1;
+  }
+}
+
+.typing-dot-1 {
+  animation: typingDotWave 1.3s infinite ease-in-out;
+}
+
+.typing-dot-2 {
+  animation: typingDotWave 1.3s infinite ease-in-out 0.2s;
+}
+
+.typing-dot-3 {
+  animation: typingDotWave 1.3s infinite ease-in-out 0.4s;
+}
+
+
