@@ -75,7 +75,25 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           setCurrentUser(syncRes.user);
         }
       } catch (err) {
-        console.error('Failed to sync authenticated user profile:', err);
+        console.warn('Backend sync warning on auth state change:', err);
+        // Fallback user object from Firebase credentials so the user is never stuck on login screen
+        const cleanUsername = (fbUser.displayName || fbUser.email?.split('@')[0] || `user_${fbUser.uid.substring(0, 6)}`)
+          .trim()
+          .toLowerCase()
+          .replace(/[^a-z0-9_]/g, '');
+
+        setCurrentUser({
+          id: fbUser.uid,
+          fullName: fbUser.displayName || cleanUsername,
+          username: cleanUsername,
+          avatarUrl: fbUser.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(cleanUsername)}`,
+          email: fbUser.email || '',
+          role: 'user',
+          status: 'online',
+          badges: [],
+          customStatus: '',
+          createdAt: new Date().toISOString(),
+        });
       } finally {
         setIsLoading(false);
       }
@@ -113,21 +131,40 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const fbUser = userCredential.user;
 
       // Sync verified profile with backend using authoritative token
-      const syncRes = await api.syncAuthUser({
-        email: fbUser.email || undefined,
-      });
+      try {
+        const syncRes = await api.syncAuthUser({
+          email: fbUser.email || undefined,
+        });
 
-      if (syncRes?.user) {
-        setCurrentUser(syncRes.user);
+        if (syncRes?.user) {
+          setCurrentUser(syncRes.user);
+        }
+      } catch (backendSyncErr: any) {
+        console.warn('Backend profile sync warning during login:', backendSyncErr);
+        // Fallback user state from Firebase user so login is never blocked if backend server is separate
+        setCurrentUser({
+          id: fbUser.uid,
+          fullName: fbUser.displayName || fbUser.email?.split('@')[0] || 'User',
+          username: (fbUser.displayName || fbUser.email?.split('@')[0] || `user_${fbUser.uid.substring(0, 6)}`)
+            .toLowerCase()
+            .replace(/[^a-z0-9_]/g, ''),
+          avatarUrl: fbUser.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${fbUser.uid}`,
+          email: fbUser.email || '',
+          role: 'user',
+          status: 'online',
+          badges: [],
+          customStatus: '',
+          createdAt: new Date().toISOString(),
+        });
       }
 
       return true;
     } catch (err: any) {
-      let friendlyMessage = 'Login failed. Please check your credentials.';
+      let friendlyMessage = err?.message || 'Login failed. Please check your credentials.';
       const code = err?.code || '';
 
       if (code === 'auth/invalid-credential' || code === 'auth/user-not-found' || code === 'auth/wrong-password') {
-        friendlyMessage = 'Invalid email or password. Please try again.';
+        friendlyMessage = 'Invalid email or password. Please check your credentials or create a new account.';
       } else if (code === 'auth/invalid-email') {
         friendlyMessage = 'Please enter a valid email address.';
       } else if (code === 'auth/user-disabled') {
@@ -136,10 +173,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         friendlyMessage = 'Too many failed attempts. Please wait a moment before trying again.';
       } else if (code === 'auth/operation-not-allowed') {
         friendlyMessage = 'Email/Password sign-in is disabled in Firebase Console. Please click "Continue with Google".';
+      } else if (code === 'auth/unauthorized-domain') {
+        friendlyMessage = 'This domain is not authorized in Firebase Console. Please add "hangout-liard.vercel.app" to Firebase Authentication -> Settings -> Authorized domains.';
+      } else if (code === 'auth/network-request-failed') {
+        friendlyMessage = 'Network error connecting to Firebase. Please check your connection.';
       } else if (err?.message) {
         friendlyMessage = err.message;
       }
 
+      console.error('Firebase Auth Login Error:', err);
       setError(friendlyMessage);
       return false;
     } finally {
@@ -240,20 +282,41 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         .toLowerCase()
         .replace(/[^a-z0-9_]/g, '');
 
-      const syncRes = await api.syncAuthUser({
-        fullName: fbUser.displayName || cleanUsername,
-        username: cleanUsername,
-        email: fbUser.email || undefined,
-        avatarUrl: fbUser.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(cleanUsername)}`,
-      });
+      try {
+        const syncRes = await api.syncAuthUser({
+          fullName: fbUser.displayName || cleanUsername,
+          username: cleanUsername,
+          email: fbUser.email || undefined,
+          avatarUrl: fbUser.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(cleanUsername)}`,
+        });
 
-      if (syncRes?.user) {
-        setCurrentUser(syncRes.user);
+        if (syncRes?.user) {
+          setCurrentUser(syncRes.user);
+        }
+      } catch (backendSyncErr: any) {
+        console.warn('Backend sync warning during Google login:', backendSyncErr);
+        // Fallback user state so login succeeds even on static frontend hosting
+        setCurrentUser({
+          id: fbUser.uid,
+          fullName: fbUser.displayName || cleanUsername,
+          username: cleanUsername,
+          avatarUrl: fbUser.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(cleanUsername)}`,
+          email: fbUser.email || '',
+          role: 'user',
+          status: 'online',
+          badges: [],
+          customStatus: '',
+          createdAt: new Date().toISOString(),
+        });
       }
 
       return true;
     } catch (err: any) {
       if (err?.code === 'auth/popup-closed-by-user' || err?.code === 'auth/cancelled-popup-request') {
+        return false;
+      }
+      if (err?.code === 'auth/unauthorized-domain') {
+        setError('This domain is not authorized in Firebase. Add "hangout-liard.vercel.app" to Firebase Authentication -> Settings -> Authorized domains.');
         return false;
       }
       setError(err?.message || 'Google sign-in failed.');
